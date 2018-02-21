@@ -1,12 +1,11 @@
 <?php
 namespace AppBundle\Command;
 
-use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Output\OutputInterface;
+use AppBundle\Command\BaseCommand;
 use AppBundle\Entity\ExpiredPassport;
+use Exception;
 
-class ExpiredPassportsCommand extends Command
+class ExpiredPassportsCommand extends BaseCommand
 {
     /**
      *
@@ -15,38 +14,22 @@ class ExpiredPassportsCommand extends Command
     protected function configure()
     {
         $this
-            // the name of the command (the part after "bin/console")
             ->setName('app:expired-passports')
-
-            // the short description shown while running "php bin/console list"
-            ->setDescription('Creates a new user.')
-
-            // the full command description shown when running the command with
-            // the "--help" option
-            ->setHelp('This command allows you to create a user...')
+            ->setDescription('Перезаписать данные о истекших паспортах')
+            ->setHelp('Очистим таблицу expired_passport и заполним её новыми даннми')
         ;
     }
 
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function start()
     {
-        $this->output = $output;
-        try{
-            $this->storeData();
-            $this->output->writeln('done');
-        } catch (Exception  $e){
-            $this->output->writeln($e->getMessage());
-        }
+        $this->output->writeln('yee'); exit();
+        $this->storeData();
+        $this->output->writeln('done');
     }
 
-    private function testStore()
-    {
-        $batchSize = 20;
-        for ($i = 1; $i <= 100000; ++$i) {
-            $this->insertData(rand(1, 100), rand(1, 34567));
-        }
-        $this->getEm()->flush(); //Persist objects that did not make up an entire batch
-        $this->getEm()->clear();
-    }
+    /**
+     * @return string
+     */
     private function getPathToFile()
     {
         $pathToFile = $this->getContainer()->getParameter('web_files_dir') . 'list_of_expired_passports.csv';
@@ -56,17 +39,20 @@ class ExpiredPassportsCommand extends Command
         return $pathToFile;
 
     }
+
     private function storeData()
     {
         $this->truncateTable();
         $a = 0;
-        $batchSize = 20;
+        $batchSize = 1000;
         if (($handle = fopen($this->getPathToFile(), 'r')) !== false)
         {
             while(($data = fgetcsv($handle)) !== false) {
                 if ($a !== 0) {
-                    echo $a . "\n";
                     $this->insertData($data[0], $data[1]);
+                }
+                if ($a % $batchSize === 0){
+                    echo $a . "\n";
                 }
                 $a++;
                 unset($data);
@@ -75,6 +61,10 @@ class ExpiredPassportsCommand extends Command
         }
     }
 
+    /**
+     * @param $series
+     * @param $number
+     */
     private function insertData($series, $number)
     {
         $expiredPassport = new ExpiredPassport();
@@ -85,11 +75,13 @@ class ExpiredPassportsCommand extends Command
         $this->getEm()->clear();
     }
 
+    /**
+     * Очищаем таблицу
+     */
     private function truncateTable()
     {
         $connection = $this->getEm()->getConnection();
         $platform   = $connection->getDatabasePlatform();
-
         $connection->executeUpdate($platform->getTruncateTableSQL('expired_passport', true /* whether to cascade */));
     }
 
@@ -99,17 +91,5 @@ class ExpiredPassportsCommand extends Command
 
 
 
-    protected function getContainer()
-    {
-        return $this->getApplication()->getKernel()->getContainer();
-    }
-    protected function getEm()
-    {
-        $em = $this->getContainer()->get('doctrine')->getManager();
 
-        /* Не забиваем логами память */
-        $em->getConnection()->getConfiguration()->setSQLLogger(null);
-
-        return $em;
-    }
 }
