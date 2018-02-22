@@ -3,7 +3,7 @@ namespace AppBundle\Command;
 
 use AppBundle\Command\BaseCommand;
 use AppBundle\Entity\ExpiredPassport;
-use Exception;
+use AppBundle\Exception\CommandException;
 
 class ExpiredPassportsCommand extends BaseCommand
 {
@@ -20,32 +20,38 @@ class ExpiredPassportsCommand extends BaseCommand
         ;
     }
 
+    /**
+     * @throws CommandException
+     */
     protected function start()
     {
-        $this->output->writeln('yee'); exit();
         $this->storeData();
         $this->output->writeln('done');
     }
 
     /**
      * @return string
+     * @throws CommandException
      */
     private function getPathToFile()
     {
-        $pathToFile = $this->getContainer()->getParameter('web_files_dir') . 'list_of_expired_passports.csv';
+        $pathToFile = $this->getContainer()->getParameter('web_files_dir') . $this->getContainer()->getParameter('file_list_of_expired_passports');
         if(!file_exists($pathToFile)) {
-            throw new Exception('Файл не обнаружен');
+            throw new CommandException('Файл не обнаружен');
         }
         return $pathToFile;
 
     }
 
+    /**
+     * @throws CommandException
+     */
     private function storeData()
     {
         $this->truncateTable();
         $a = 0;
         $batchSize = 1000;
-        if (($handle = fopen($this->getPathToFile(), 'r')) !== false)
+        if (false !== ($handle = fopen($this->getPathToFile(), 'r')))
         {
             while(($data = fgetcsv($handle)) !== false) {
                 if ($a !== 0) {
